@@ -18,10 +18,10 @@ buffer_folder = args.buffer_folder
 if buffer_folder and " " in buffer_folder:
     buffer_folder = '"%s"' % buffer_folder
 
-M = imaplib.IMAP4(args.host)
-M.login(args.username, args.password)
+mailbox = imaplib.IMAP4(args.host)
+mailbox.login(args.username, args.password)
 
-retcode, folders = M.list()
+retcode, folders = mailbox.list()
 normalized_folders = list(map(lambda b: b.decode().split(' "/" ')[1], folders))
 
 if normalized_folders:
@@ -35,7 +35,7 @@ if target_folder not in normalized_folders:
 
 if buffer_folder and buffer_folder not in normalized_folders:
     print('Buffer folder %s does not exist; creating' % buffer_folder)
-    M.create(buffer_folder)
+    mailbox.create(buffer_folder)
 
 senders_file_path = 'accounts/%s.csv' % args.username
 if os.path.exists(senders_file_path):
@@ -51,8 +51,8 @@ if not senders:
 pattern_uid = re.compile(r'\d+ \(UID (?P<uid>\d+)\)')
 
 def delete_message_by_uid(msg_uid):
-    retcode, data = M.uid('STORE', msg_uid , '+FLAGS', '(\Deleted)')
-    M.expunge()
+    retcode, data = mailbox.uid('STORE', msg_uid , '+FLAGS', '(\Deleted)')
+    mailbox.expunge()
     print('\t' + '...deleted from target folder %s' % target_folder)
 
 def handle_messages(messages, keyword):
@@ -60,15 +60,15 @@ def handle_messages(messages, keyword):
 
     for email_id in email_ids:
 
-        retcode, uid = M.fetch(email_id, "(UID)")
+        retcode, uid = mailbox.fetch(email_id, "(UID)")
         msg_uid = parse_uid(uid[0].decode('utf-8'))
 
-        retcode, message = M.fetch(email_id, "(RFC822)")
+        retcode, message = mailbox.fetch(email_id, "(RFC822)")
         original = email.message_from_bytes(message[0][1])
         print(keyword, msg_uid, original['subject'], original['from'], original['date'])
 
         if buffer_folder:
-            result = M.uid('COPY', msg_uid, '%s' % buffer_folder)
+            result = mailbox.uid('COPY', msg_uid, '%s' % buffer_folder)
             if result[0] == 'OK':
                 print('\t' + '...copied to buffer folder %s' % buffer_folder)
                 delete_message_by_uid(msg_uid)
@@ -82,12 +82,12 @@ def parse_uid(data):
     match = pattern_uid.match(data)
     return match.group('uid')
 
-M.select(target_folder)
+mailbox.select(target_folder)
 for sender in senders:
     keyword = '(FROM "%s")' % sender
-    (retcode, messages) = M.sort('REVERSE DATE', 'UTF-8', keyword)
+    (retcode, messages) = mailbox.sort('REVERSE DATE', 'UTF-8', keyword)
     if retcode == 'OK':
         handle_messages(messages, keyword)
 
-M.close()
+mailbox.close()
 exit()
