@@ -1,6 +1,6 @@
 ## IMAP Junk Pruner
 
-Let's help keep out inboxes free from junk.
+Let's help keep our inboxes free from junk.
 
 ### Up and running
 
